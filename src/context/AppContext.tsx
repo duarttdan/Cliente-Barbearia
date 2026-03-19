@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Servico, Cliente, Transacao, TipoTransacao, Filtros } from '../types';
+import { logger } from '../utils/logger';
 
 interface AppContextType {
   servicos: Servico[];
@@ -59,32 +60,121 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const adicionarServico = (servico: Omit<Servico, 'id'>) => {
     const novoServico = { ...servico, id: Date.now().toString() };
     setServicos(prev => [...prev, novoServico]);
+    
+    logger.registrar(
+      'CREATE',
+      'servico',
+      `Serviço "${servico.nome}" foi criado (R$ ${servico.preco.toFixed(2)})`,
+      {
+        nomeDados: servico.nome,
+        dadosDepois: novoServico
+      }
+    );
   };
 
   const atualizarServico = (id: string, servico: Partial<Servico>) => {
+    const servicoAntigo = servicos.find(s => s.id === id);
     setServicos(prev => prev.map(s => s.id === id ? { ...s, ...servico } : s));
+    
+    if (servicoAntigo) {
+      logger.registrar(
+        'UPDATE',
+        'servico',
+        `Serviço "${servicoAntigo.nome}" foi atualizado`,
+        {
+          nomeDados: servicoAntigo.nome,
+          dadosAntes: servicoAntigo,
+          dadosDepois: { ...servicoAntigo, ...servico }
+        }
+      );
+    }
   };
 
   const excluirServico = (id: string) => {
+    const servicoExcluido = servicos.find(s => s.id === id);
     setServicos(prev => prev.filter(s => s.id !== id));
+    
+    if (servicoExcluido) {
+      logger.registrar(
+        'DELETE',
+        'servico',
+        `Serviço "${servicoExcluido.nome}" foi deletado`,
+        {
+          nomeDados: servicoExcluido.nome,
+          dadosAntes: servicoExcluido
+        }
+      );
+    }
   };
 
   const adicionarCliente = (cliente: Omit<Cliente, 'id'>) => {
     const novoCliente = { ...cliente, id: Date.now().toString() };
     setClientes(prev => [...prev, novoCliente]);
+    
+    logger.registrar(
+      'CREATE',
+      'cliente',
+      `Cliente "${cliente.nome}" foi registrado (${cliente.servicos.length} serviço(s) - R$ ${cliente.valorTotal.toFixed(2)})`,
+      {
+        nomeDados: cliente.nome,
+        dadosDepois: novoCliente
+      }
+    );
   };
 
   const atualizarCliente = (id: string, cliente: Partial<Cliente>) => {
+    const clienteAntigo = clientes.find(c => c.id === id);
     setClientes(prev => prev.map(c => c.id === id ? { ...c, ...cliente } : c));
+    
+    if (clienteAntigo) {
+      const statusMudou = cliente.status && cliente.status !== clienteAntigo.status;
+      const mensagem = statusMudou 
+        ? `Cliente "${clienteAntigo.nome}" foi marcado como ${cliente.status}`
+        : `Cliente "${clienteAntigo.nome}" foi atualizado`;
+      
+      logger.registrar(
+        'UPDATE',
+        'cliente',
+        mensagem,
+        {
+          nomeDados: clienteAntigo.nome,
+          dadosAntes: clienteAntigo,
+          dadosDepois: { ...clienteAntigo, ...cliente }
+        }
+      );
+    }
   };
 
   const excluirCliente = (id: string) => {
+    const clienteExcluido = clientes.find(c => c.id === id);
     setClientes(prev => prev.filter(c => c.id !== id));
+    
+    if (clienteExcluido) {
+      logger.registrar(
+        'DELETE',
+        'cliente',
+        `Cliente "${clienteExcluido.nome}" foi deletado (R$ ${clienteExcluido.valorTotal.toFixed(2)})`,
+        {
+          nomeDados: clienteExcluido.nome,
+          dadosAntes: clienteExcluido
+        }
+      );
+    }
   };
 
   const finalizarAtendimento = (clienteId: string) => {
     const cliente = clientes.find(c => c.id === clienteId);
-    if (!cliente || cliente.status === 'finalizado') return;
+    if (!cliente || cliente.status === 'finalizado') {
+      if (!cliente) {
+        logger.registrar(
+          'ACTION',
+          'cliente',
+          `Tentativa de finalizar atendimento de cliente não encontrado`,
+          { status: 'erro', mensagemErro: 'Cliente não encontrado' }
+        );
+      }
+      return;
+    }
 
     // Atualizar status do cliente
     atualizarCliente(clienteId, { status: 'finalizado' });
@@ -99,15 +189,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clienteId: clienteId
     };
     adicionarTransacao(novaTransacao);
+
+    logger.registrar(
+      'ACTION',
+      'cliente',
+      `Atendimento do cliente "${cliente.nome}" foi finalizado (R$ ${cliente.valorTotal.toFixed(2)})`,
+      {
+        nomeDados: cliente.nome,
+        dadosDepois: { clienteId, valorTotal: cliente.valorTotal }
+      }
+    );
   };
 
   const adicionarTransacao = (transacao: Omit<Transacao, 'id'>) => {
     const novaTransacao = { ...transacao, id: Date.now().toString() };
     setTransacoes(prev => [...prev, novaTransacao]);
+    
+    const tipoLabel = transacao.tipo === 'receita' ? 'Receita' : 'Despesa';
+    logger.registrar(
+      'CREATE',
+      'transacao',
+      `${tipoLabel} registrada - ${transacao.descricao} (R$ ${transacao.valor.toFixed(2)})`,
+      {
+        nomeDados: transacao.descricao,
+        dadosDepois: novaTransacao
+      }
+    );
   };
 
   const excluirTransacao = (id: string) => {
+    const transacaoExcluida = transacoes.find(t => t.id === id);
     setTransacoes(prev => prev.filter(t => t.id !== id));
+    
+    if (transacaoExcluida) {
+      const tipoLabel = transacaoExcluida.tipo === 'receita' ? 'Receita' : 'Despesa';
+      logger.registrar(
+        'DELETE',
+        'transacao',
+        `${tipoLabel} foi deletada - ${transacaoExcluida.descricao} (R$ ${transacaoExcluida.valor.toFixed(2)})`,
+        {
+          nomeDados: transacaoExcluida.descricao,
+          dadosAntes: transacaoExcluida
+        }
+      );
+    }
   };
 
   return (

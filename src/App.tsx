@@ -5,8 +5,9 @@ import Clientes from './components/Clientes';
 import Servicos from './components/Servicos';
 import EntradasSaidas from './components/EntradasSaidas';
 import PlanilhaMensal from './components/PlanilhaMensal';
+import ActivityLog from './components/ActivityLog';
 
-type TabType = 'dashboard' | 'clientes' | 'servicos' | 'financeiro' | 'planilha';
+type TabType = 'dashboard' | 'clientes' | 'servicos' | 'financeiro' | 'planilha' | 'logs';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
@@ -16,7 +17,8 @@ function App() {
     { id: 'clientes', label: 'Clientes', icon: '👥' },
     { id: 'servicos', label: 'Serviços', icon: '✂️' },
     { id: 'financeiro', label: 'Financeiro', icon: '💰' },
-    { id: 'planilha', label: 'Planilha', icon: '📋' }
+    { id: 'planilha', label: 'Planilha', icon: '📋' },
+    { id: 'logs', label: 'Atividades', icon: '📝' }
   ];
 
   const renderContent = () => {
@@ -31,6 +33,8 @@ function App() {
         return <EntradasSaidas />;
       case 'planilha':
         return <PlanilhaMensal />;
+      case 'logs':
+        return <ActivityLog />;
       default:
         return <Dashboard />;
     }

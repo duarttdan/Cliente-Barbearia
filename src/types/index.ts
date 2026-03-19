@@ -68,3 +68,32 @@ export interface Filtros {
   formaPagamento?: FormaPagamento;
   status?: StatusAtendimento;
 }
+
+// Sistema de Logs
+export type TipoOperacao = 'CREATE' | 'UPDATE' | 'DELETE' | 'ACTION';
+export type EntidadeLog = 'servico' | 'cliente' | 'transacao' | 'sistema';
+
+export interface LogEntry {
+  id: string;
+  timestamp: number;
+  dataFormatada: string;
+  operacao: TipoOperacao;
+  entidade: EntidadeLog;
+  nomeDados?: string;
+  dadosAntes?: any;
+  dadosDepois?: any;
+  descricao: string;
+  usuario?: string;
+  ip?: string;
+  status: 'sucesso' | 'erro';
+  mensagemErro?: string;
+}
+
+export interface RelatórioLogs {
+  totalLogs: number;
+  periodoInicio: string;
+  periodoFim: string;
+  operacoesPorTipo: Record<TipoOperacao, number>;
+  entidadesMaisModificadas: Array<{ entidade: EntidadeLog; quantidade: number }>;
+  logsRecentes: LogEntry[];
+}
